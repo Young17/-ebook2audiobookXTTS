@@ -1,5 +1,5 @@
 print("starting...")
-
+import sys
 import os
 import shutil
 import subprocess
@@ -428,17 +428,40 @@ def convert_chapters_to_audio(chapters_dir, output_audio_dir, target_voice_path=
             wipe_folder(temp_audio_directory)
             print(f"Converted chapter {chapter_num} to audio.")
 
+def is_valid_language_code(arg):
+    # You might want to extend this with a more sophisticated check
+    return len(arg) == 2 and not ('.' in arg)
 
+def is_voice_file_path(arg):
+    # Adjust this based on expected voice file path characteristics
+    return '.' in arg
 
 # Main execution flow
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python script.py <ebook_file_path> [target_voice_file_path]")
+        print("Error: No eBook file path specified.")
         sys.exit(1)
-
+    
     ebook_file_path = sys.argv[1]
-    target_voice = sys.argv[2] if len(sys.argv) > 2 else None
-    language = sys.argv[3] if len(sys.argv) > 3 else None
+    
+    # Default values
+    target_voice = "default_voice.wav"
+    language = "en"
+    
+    if len(sys.argv) == 3:
+        # If there's an additional argument, determine if it's a language code or a voice file path
+        if is_valid_language_code(sys.argv[2]):
+            language = sys.argv[2]
+        elif is_voice_file_path(sys.argv[2]):
+            target_voice = sys.argv[2]
+        else:
+            print("Error: Second argument is neither a valid language code nor a voice file path.")
+            sys.exit(1)
+    
+    elif len(sys.argv) == 4:
+        # Assume the order is ebook_file_path, voice file path, language code
+        target_voice = sys.argv[2]
+        language = sys.argv[3]
 
     if not calibre_installed():
         sys.exit(1)
