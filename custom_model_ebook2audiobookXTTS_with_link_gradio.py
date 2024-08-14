@@ -449,7 +449,7 @@ from tqdm import tqdm
 
 def convert_chapters_to_audio_custom_model(chapters_dir, output_audio_dir, target_voice_path=None, language=None, custom_model=None):
 
-    if target_voice_path==None:
+    if target_voice_path == None:
         target_voice_path = default_target_voice_path
 
     if custom_model:
@@ -458,9 +458,16 @@ def convert_chapters_to_audio_custom_model(chapters_dir, output_audio_dir, targe
         config.load_json(custom_model['config'])
         model = Xtts.init_from_config(config)
         model.load_checkpoint(config, checkpoint_path=custom_model['model'], vocab_path=custom_model['vocab'], use_deepspeed=False)
-        model.device
+        
+        # Move the model to the GPU
+        model.to(device)
+        
         print("Computing speaker latents...")
         gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[target_voice_path])
+        
+        # Ensure latents and embeddings are on the GPU
+        gpt_cond_latent = gpt_cond_latent.to(device)
+        speaker_embedding = speaker_embedding.to(device)
     else:
         selected_tts_model = "tts_models/multilingual/multi-dataset/xtts_v2"
         tts = TTS(selected_tts_model, progress_bar=False).to(device)
@@ -494,8 +501,9 @@ def convert_chapters_to_audio_custom_model(chapters_dir, output_audio_dir, targe
                             print(f"Generating fragment: {fragment}...")
                             fragment_file_path = os.path.join(temp_audio_directory, f"{temp_count}.wav")
                             if custom_model:
+                                # Inference using the custom model
                                 out = model.inference(fragment, language, gpt_cond_latent, speaker_embedding, temperature=0.7)
-                                torchaudio.save(fragment_file_path, torch.tensor(out["wav"]).unsqueeze(0), 24000)
+                                torchaudio.save(fragment_file_path, torch.tensor(out["wav"]).unsqueeze(0).to(device), 24000)
                             else:
                                 speaker_wav_path = target_voice_path if target_voice_path else default_target_voice_path
                                 language_code = language if language else default_language_code
@@ -505,6 +513,7 @@ def convert_chapters_to_audio_custom_model(chapters_dir, output_audio_dir, targe
             combine_wav_files(temp_audio_directory, output_audio_dir, output_file_name)
             wipe_folder(temp_audio_directory)
             print(f"Converted chapter {chapter_num} to audio.")
+
 
 
 
